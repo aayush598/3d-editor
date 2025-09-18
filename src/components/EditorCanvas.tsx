@@ -63,10 +63,8 @@ export default function EditorCanvas() {
   const selectObject = useSceneStore((s) => s.selectObject)
   const updateObjectPosition = useSceneStore((s) => s.updateObjectPosition)
 
-  // transform mode: translate | rotate | scale
   const [mode, setMode] = useState<'translate' | 'rotate' | 'scale'>('translate')
 
-  // handle keyboard shortcuts for mode
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 't') setMode('translate')
@@ -77,11 +75,38 @@ export default function EditorCanvas() {
     return () => window.removeEventListener('keydown', handleKey)
   }, [])
 
-  // Click empty space to deselect
   const handleBackgroundClick = () => selectObject(null)
 
-  // Refs for each mesh
   const meshRefs = useRef<Record<string, THREE.Mesh>>({})
+
+  // inside EditorCanvas
+
+const groupRefs = useRef<Record<string, THREE.Group>>({})
+
+const renderObjects = (parentId: string | null) => {
+  return objects
+    .filter((o) => (o.parentId ?? null) === parentId)
+    .map((obj) => (
+      <group
+        key={obj.id}
+        ref={(el: THREE.Group) => {
+          if (el) groupRefs.current[obj.id] = el
+        }}
+      >
+        <MemoPrimitiveMesh
+          id={obj.id}
+          type={obj.type}
+          position={obj.position}
+          isSelected={obj.id === selectedId}
+          onSelect={selectObject}
+          // no meshRef needed anymore
+          meshRef={() => {}}
+        />
+        {renderObjects(obj.id)}
+      </group>
+    ))
+}
+
 
   return (
     <Canvas
@@ -100,29 +125,16 @@ export default function EditorCanvas() {
       />
       <Grid args={[50, 50]} cellColor="gray" sectionColor="lightgray" infiniteGrid />
 
-      {objects.map((obj) => (
-        <MemoPrimitiveMesh
-          key={obj.id}
-          id={obj.id}
-          type={obj.type}
-          position={obj.position}
-          isSelected={obj.id === selectedId}
-          onSelect={selectObject}
-          meshRef={(el: THREE.Mesh) => {
-            if (el) meshRefs.current[obj.id] = el
-          }}
-        />
-      ))}
+      {renderObjects(null)}
 
-      {/* Transform Controls only if selected */}
       {selectedId && meshRefs.current[selectedId] && (
         <TransformControls
           object={meshRefs.current[selectedId]}
           mode={mode}
           onObjectChange={() => {
-            const mesh = meshRefs.current[selectedId]
-            if (mesh) {
-              const pos = mesh.position
+            const group = groupRefs.current[selectedId]
+            if (group) {
+              const pos = group.position
               updateObjectPosition(selectedId, [pos.x, pos.y, pos.z])
             }
           }}
