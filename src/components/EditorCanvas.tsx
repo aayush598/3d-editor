@@ -6,6 +6,7 @@ import { useSceneStore } from '@/stores/sceneStore'
 import { memo, useRef, useState, useEffect } from 'react'
 import * as THREE from 'three'
 
+/** Primitive mesh component */
 function PrimitiveMesh({
   id,
   type,
@@ -14,12 +15,12 @@ function PrimitiveMesh({
   onSelect,
   meshRef,
 }: {
-  id: string;
-  type: string;
-  position: [number, number, number];
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-  meshRef: React.Ref<THREE.Mesh>;
+  id: string
+  type: string
+  position: [number, number, number]
+  isSelected: boolean
+  onSelect: (id: string) => void
+  meshRef: React.Ref<THREE.Mesh>
 }) {
   const commonProps = {
     position,
@@ -49,36 +50,39 @@ function PrimitiveMesh({
     <mesh {...commonProps}>
       {geometry}
       <meshStandardMaterial
-        color={isSelected ? 'yellow' : type === 'sphere' ? 'skyblue' : type === 'plane' ? 'lightgreen' : 'orange'}
+        color={
+          isSelected
+            ? 'yellow'
+            : type === 'sphere'
+            ? 'skyblue'
+            : type === 'plane'
+            ? 'lightgreen'
+            : 'orange'
+        }
         wireframe={isSelected}
       />
     </mesh>
   )
 }
+
 const MemoPrimitiveMesh = memo(PrimitiveMesh)
 
+/** Editor Canvas with move/rotate/scale, undo/redo, hierarchy support */
 export default function EditorCanvas() {
   const objects = useSceneStore((s) => s.objects)
   const selectedId = useSceneStore((s) => s.selectedId)
   const selectObject = useSceneStore((s) => s.selectObject)
   const updateObjectPosition = useSceneStore((s) => s.updateObjectPosition)
-
   const undo = useSceneStore((s) => s.undo)
   const redo = useSceneStore((s) => s.redo)
 
   const [mode, setMode] = useState<'translate' | 'rotate' | 'scale'>('translate')
 
+  /** Keyboard shortcuts */
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key.toLowerCase() === 'z') {
-        if (e.shiftKey) {
-          // This block is no longer needed for redo, so it can be removed or left empty if another action is planned for Ctrl+Shift+Z
-        } else {
-          undo();
-        }
-      } else if (e.ctrlKey && e.key.toLowerCase() === 'y') {
-        redo();
-      }
+      if (e.ctrlKey && e.key.toLowerCase() === 'z') undo()
+      else if (e.ctrlKey && e.key.toLowerCase() === 'y') redo()
       if (e.key === 't') setMode('translate')
       if (e.key === 'r') setMode('rotate')
       if (e.key === 's') setMode('scale')
@@ -87,21 +91,21 @@ export default function EditorCanvas() {
     return () => window.removeEventListener('keydown', handleKey)
   }, [undo, redo])
 
+  /** Deselect when clicking empty space */
   const handleBackgroundClick = () => selectObject(null)
 
+  /** Refs for meshes and groups */
   const meshRefs = useRef<Record<string, THREE.Mesh>>({})
-
-  // inside EditorCanvas
-
   const groupRefs = useRef<Record<string, THREE.Group>>({})
 
-  const renderObjects = (parentId: string | null) => {
-    return objects
+  /** Recursive render for hierarchy */
+  const renderObjects = (parentId: string | null) =>
+    objects
       .filter((o) => (o.parentId ?? null) === parentId)
       .map((obj) => (
         <group
           key={obj.id}
-          ref={(el: THREE.Group) => {
+          ref={(el) => {
             if (el) groupRefs.current[obj.id] = el
           }}
         >
@@ -111,14 +115,13 @@ export default function EditorCanvas() {
             position={obj.position}
             isSelected={obj.id === selectedId}
             onSelect={selectObject}
-            // no meshRef needed anymore
-            meshRef={() => {}}
+            meshRef={(el) => {
+              if (el) meshRefs.current[obj.id] = el
+            }}
           />
           {renderObjects(obj.id)}
         </group>
       ))
-  }
-
 
   return (
     <Canvas
@@ -137,16 +140,18 @@ export default function EditorCanvas() {
       />
       <Grid args={[50, 50]} cellColor="gray" sectionColor="lightgray" infiniteGrid />
 
+      {/* Render hierarchical objects */}
       {renderObjects(null)}
 
+      {/* TransformControls for selected object */}
       {selectedId && meshRefs.current[selectedId] && (
         <TransformControls
           object={meshRefs.current[selectedId]}
           mode={mode}
           onObjectChange={() => {
-            const group = groupRefs.current[selectedId]
-            if (group) {
-              const pos = group.position
+            const mesh = meshRefs.current[selectedId]
+            if (mesh) {
+              const pos = mesh.position
               updateObjectPosition(selectedId, [pos.x, pos.y, pos.z])
             }
           }}
