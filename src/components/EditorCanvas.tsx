@@ -1,9 +1,9 @@
 'use client'
 
 import { Canvas, ThreeEvent } from '@react-three/fiber'
-import { OrbitControls, Grid } from '@react-three/drei'
+import { OrbitControls, Grid, TransformControls } from '@react-three/drei'
 import { useSceneStore } from '@/stores/sceneStore'
-import { memo } from 'react'
+import { memo, useRef, useState, useEffect } from 'react'
 import * as THREE from 'three'
 
 function PrimitiveMesh({
@@ -12,34 +12,37 @@ function PrimitiveMesh({
   position,
   isSelected,
   onSelect,
+  meshRef,
 }: {
   id: string;
   type: string;
   position: [number, number, number];
   isSelected: boolean;
   onSelect: (id: string) => void;
+  meshRef: React.Ref<THREE.Mesh>;
 }) {
   const commonProps = {
     position,
     castShadow: true,
     receiveShadow: true,
+    ref: meshRef,
     onClick: (e: ThreeEvent<PointerEvent>) => {
-      e.stopPropagation(); // prevent clicking through to canvas background
-      onSelect(id);
+      e.stopPropagation()
+      onSelect(id)
     },
-  };
+  }
 
-  let geometry;
+  let geometry
   switch (type) {
     case 'sphere':
-      geometry = <sphereGeometry args={[0.5, 32, 32]} />;
-      break;
+      geometry = <sphereGeometry args={[0.5, 32, 32]} />
+      break
     case 'plane':
-      geometry = <planeGeometry args={[1, 1]} />;
-      break;
+      geometry = <planeGeometry args={[1, 1]} />
+      break
     default:
-      geometry = <boxGeometry args={[1, 1, 1]} />;
-      break;
+      geometry = <boxGeometry args={[1, 1, 1]} />
+      break
   }
 
   return (
@@ -50,7 +53,7 @@ function PrimitiveMesh({
         wireframe={isSelected}
       />
     </mesh>
-  );
+  )
 }
 const MemoPrimitiveMesh = memo(PrimitiveMesh)
 
@@ -58,9 +61,27 @@ export default function EditorCanvas() {
   const objects = useSceneStore((s) => s.objects)
   const selectedId = useSceneStore((s) => s.selectedId)
   const selectObject = useSceneStore((s) => s.selectObject)
+  const updateObjectPosition = useSceneStore((s) => s.updateObjectPosition)
+
+  // transform mode: translate | rotate | scale
+  const [mode, setMode] = useState<'translate' | 'rotate' | 'scale'>('translate')
+
+  // handle keyboard shortcuts for mode
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 't') setMode('translate')
+      if (e.key === 'r') setMode('rotate')
+      if (e.key === 's') setMode('scale')
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [])
 
   // Click empty space to deselect
   const handleBackgroundClick = () => selectObject(null)
+
+  // Refs for each mesh
+  const meshRefs = useRef<Record<string, THREE.Mesh>>({})
 
   return (
     <Canvas
@@ -78,6 +99,7 @@ export default function EditorCanvas() {
         shadow-mapSize-height={2048}
       />
       <Grid args={[50, 50]} cellColor="gray" sectionColor="lightgray" infiniteGrid />
+
       {objects.map((obj) => (
         <MemoPrimitiveMesh
           key={obj.id}
@@ -86,8 +108,27 @@ export default function EditorCanvas() {
           position={obj.position}
           isSelected={obj.id === selectedId}
           onSelect={selectObject}
+          meshRef={(el: THREE.Mesh) => {
+            if (el) meshRefs.current[obj.id] = el
+          }}
         />
       ))}
+
+      {/* Transform Controls only if selected */}
+      {selectedId && meshRefs.current[selectedId] && (
+        <TransformControls
+          object={meshRefs.current[selectedId]}
+          mode={mode}
+          onObjectChange={() => {
+            const mesh = meshRefs.current[selectedId]
+            if (mesh) {
+              const pos = mesh.position
+              updateObjectPosition(selectedId, [pos.x, pos.y, pos.z])
+            }
+          }}
+        />
+      )}
+
       <OrbitControls makeDefault />
     </Canvas>
   )

@@ -14,6 +14,7 @@ interface SceneState {
   selectedId: string | null
   addObject: (type: PrimitiveType) => void
   selectObject: (id: string | null) => void
+  updateObjectPosition: (id: string, position: [number, number, number]) => void
 }
 
 export const useSceneStore = create<SceneState>((set) => ({
@@ -31,4 +32,10 @@ export const useSceneStore = create<SceneState>((set) => ({
       ],
     })),
   selectObject: (id) => set({ selectedId: id }),
+  updateObjectPosition: (id, position) =>
+    set((state) => ({
+      objects: state.objects.map((o) =>
+        o.id === id ? { ...o, position } : o
+      ),
+    })),
 }))
