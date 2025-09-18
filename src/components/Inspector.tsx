@@ -34,6 +34,9 @@ export default function Inspector() {
   const selectedId = useSceneStore((s) => s.selectedId)
   const selectObject = useSceneStore((s) => s.selectObject)
   const setParent = useSceneStore((s) => s.setParent)
+  
+  const undo = useSceneStore((s) => s.undo)
+  const redo = useSceneStore((s) => s.redo)
 
   const selected = objects.find((o) => o.id === selectedId)
 
@@ -58,6 +61,11 @@ export default function Inspector() {
     <div className="p-2 text-sm overflow-auto">
       <h2 className="font-bold mb-2">Scene Graph</h2>
       {renderTree(null)}
+
+      <div className="flex gap-2 my-2">
+        <button onClick={undo} className="bg-gray-700 p-1 rounded">Undo</button>
+        <button onClick={redo} className="bg-gray-700 p-1 rounded">Redo</button>
+      </div>
 
       {selected && (
         <div className="mt-4">

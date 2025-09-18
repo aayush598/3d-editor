@@ -63,17 +63,29 @@ export default function EditorCanvas() {
   const selectObject = useSceneStore((s) => s.selectObject)
   const updateObjectPosition = useSceneStore((s) => s.updateObjectPosition)
 
+  const undo = useSceneStore((s) => s.undo)
+  const redo = useSceneStore((s) => s.redo)
+
   const [mode, setMode] = useState<'translate' | 'rotate' | 'scale'>('translate')
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+          // This block is no longer needed for redo, so it can be removed or left empty if another action is planned for Ctrl+Shift+Z
+        } else {
+          undo();
+        }
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'y') {
+        redo();
+      }
       if (e.key === 't') setMode('translate')
       if (e.key === 'r') setMode('rotate')
       if (e.key === 's') setMode('scale')
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [])
+  }, [undo, redo])
 
   const handleBackgroundClick = () => selectObject(null)
 
@@ -81,31 +93,31 @@ export default function EditorCanvas() {
 
   // inside EditorCanvas
 
-const groupRefs = useRef<Record<string, THREE.Group>>({})
+  const groupRefs = useRef<Record<string, THREE.Group>>({})
 
-const renderObjects = (parentId: string | null) => {
-  return objects
-    .filter((o) => (o.parentId ?? null) === parentId)
-    .map((obj) => (
-      <group
-        key={obj.id}
-        ref={(el: THREE.Group) => {
-          if (el) groupRefs.current[obj.id] = el
-        }}
-      >
-        <MemoPrimitiveMesh
-          id={obj.id}
-          type={obj.type}
-          position={obj.position}
-          isSelected={obj.id === selectedId}
-          onSelect={selectObject}
-          // no meshRef needed anymore
-          meshRef={() => {}}
-        />
-        {renderObjects(obj.id)}
-      </group>
-    ))
-}
+  const renderObjects = (parentId: string | null) => {
+    return objects
+      .filter((o) => (o.parentId ?? null) === parentId)
+      .map((obj) => (
+        <group
+          key={obj.id}
+          ref={(el: THREE.Group) => {
+            if (el) groupRefs.current[obj.id] = el
+          }}
+        >
+          <MemoPrimitiveMesh
+            id={obj.id}
+            type={obj.type}
+            position={obj.position}
+            isSelected={obj.id === selectedId}
+            onSelect={selectObject}
+            // no meshRef needed anymore
+            meshRef={() => {}}
+          />
+          {renderObjects(obj.id)}
+        </group>
+      ))
+  }
 
 
   return (
