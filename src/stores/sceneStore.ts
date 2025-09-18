@@ -1,4 +1,3 @@
-// src/stores/sceneStore.ts
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
 
@@ -12,11 +11,14 @@ export interface SceneObject {
 
 interface SceneState {
   objects: SceneObject[]
+  selectedId: string | null
   addObject: (type: PrimitiveType) => void
+  selectObject: (id: string | null) => void
 }
 
 export const useSceneStore = create<SceneState>((set) => ({
   objects: [],
+  selectedId: null,
   addObject: (type) =>
     set((state) => ({
       objects: [
@@ -28,4 +30,5 @@ export const useSceneStore = create<SceneState>((set) => ({
         },
       ],
     })),
+  selectObject: (id) => set({ selectedId: id }),
 }))
